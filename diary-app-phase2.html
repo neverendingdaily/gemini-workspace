@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>しずく — ノートアプリ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-ja:      'Zen Kaku Gothic New', sans-serif;
+    --font-en:      'DM Sans', sans-serif;
+    --bg-page:      #f5f4f1;
+    --bg-panel:     #ffffff;
+    --bg-surface:   #f0efec;
+    --bg-hover:     #eae9e5;
+    --bg-active:    #e4e2dc;
+    --border:       #e2e0da;
+    --border-soft:  #ebe9e4;
+    --text-primary:  #2c2b29;
+    --text-secondary:#5c5b57;
+    --text-muted:    #a09d97;
+    --text-hint:     #cbc8c2;
+    --accent:        #d05a35;
+    --accent-light:  #fdf1ed;
+    --accent-border: rgba(208,90,53,0.22);
+    --green-0: #f0f2ee;
+    --green-1: #c3dbb8;
+    --green-2: #80bc72;
+    --green-3: #4caf50;
+    --green-4: #2e7d32;
+    --radius: 10px; --radius-sm: 6px; --radius-xs: 4px;
+  }
+
+  html, body { height: 100%; background: var(--bg-page); color: var(--text-primary);
+    font-family: var(--font-ja); font-size: 14px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased; }
+
+  .app-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* ─── Top Bar ─── */
+  .topbar { display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; height: 52px; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 28px; height: 28px; background: var(--accent-light);
+    border: 1px solid var(--accent-border); border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: var(--accent); font-family: var(--font-en); font-weight: 600; }
+  .brand-name { font-family: var(--font-en); font-size: 15px; font-weight: 600;
+    color: var(--text-primary); letter-spacing: -0.01em; }
+
+  .topbar-right { display: flex; gap: 8px; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 13px;
+    border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-ja);
+    cursor: pointer; border: 1px solid var(--border); background: var(--bg-panel);
+    color: var(--text-secondary); transition: background 0.12s, border-color 0.12s; font-weight: 400; }
+  .btn:hover { background: var(--bg-surface); border-color: #d4d1cb; color: var(--text-primary); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .btn-primary:hover { background: #bc4e2c; border-color: #bc4e2c; }
+  .btn-icon { padding: 6px 8px; color: var(--text-muted); font-size: 15px; }
+
+  /* ─── Toast ─── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(12px);
+    background: var(--text-primary); color: #fff;
+    padding: 9px 18px; border-radius: 20px;
+    font-size: 13px; font-family: var(--font-ja); font-weight: 400;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ─── Main Layout ─── */
+  .main-layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ─── Sidebar ─── */
+  .sidebar { width: 256px; flex-shrink: 0; border-right: 1px solid var(--border);
+    background: var(--bg-panel); display: flex; flex-direction: column; overflow: hidden; }
+
+  .search-wrap { padding: 12px 14px 10px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0; }
+  .search-box { display: flex; align-items: center; gap: 7px; background: var(--bg-surface);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 11px;
+    transition: border-color 0.12s; }
+  .search-box:focus-within { border-color: #c9c6be; background: var(--bg-panel); }
+  .search-icon { font-size: 13px; color: var(--text-muted); flex-shrink: 0; }
+  .search-input { flex: 1; border: none; outline: none; background: transparent;
+    font-family: var(--font-ja); font-size: 13px; color: var(--text-primary); font-weight: 300; }
+  .search-input::placeholder { color: var(--text-hint); }
+
+  .sidebar-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  .sb-section { padding: 14px 14px 6px; }
+  .sb-section-label { font-size: 10px; font-weight: 700; color: var(--text-muted);
+    letter-spacing: 0.10em; text-transform: uppercase; font-family: var(--font-en); }
+
+  .folder-list { padding: 0 8px 8px; }
+  .folder-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px;
+    border-radius: var(--radius-sm); cursor: pointer; transition: background 0.1s;
+    color: var(--text-secondary); font-size: 13px; font-weight: 400; user-select: none; }
+  .folder-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .folder-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .folder-icon { font-size: 14px; flex-shrink: 0; opacity: 0.75; }
+  .folder-item.active .folder-icon { opacity: 1; }
+  .folder-count { margin-left: auto; font-size: 11px; color: var(--text-muted);
+    font-family: var(--font-en); font-weight: 400; }
+  .folder-item.active .folder-count { color: rgba(208,90,53,0.55); }
+
+  .sb-divider { height: 1px; background: var(--border-soft); margin: 6px 14px 2px; }
+
+  .note-list { padding: 0 8px 12px; }
+  .note-item { display: flex; flex-direction: column; gap: 2px; padding: 9px 8px;
+    border-radius: var(--radius-sm); cursor: pointer; transition: background 0.1s;
+    border-bottom: 1px solid var(--border-soft); }
+  .note-item:last-child { border-bottom: none; }
+  .note-item:hover { background: var(--bg-hover); }
+  .note-item.active { background: var(--bg-active); }
+  .note-item-title { font-size: 13px; font-weight: 500; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-item-meta { display: flex; align-items: center; gap: 6px; }
+  .note-item-date { font-size: 11px; color: var(--text-muted); font-family: var(--font-en); font-weight: 300; }
+  .note-item-preview { font-size: 11px; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 300; }
+  .note-tag { font-size: 10px; padding: 1px 6px; border-radius: 10px;
+    background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); }
+
+  .note-list-empty { padding: 12px 8px; font-size: 12px; color: var(--text-hint); text-align: center; }
+
+  .sb-divider-label { display: flex; align-items: center; gap: 8px; padding: 10px 14px 6px; }
+  .sb-divider-label span { font-size: 10px; font-weight: 700; color: var(--text-muted);
+    letter-spacing: 0.10em; text-transform: uppercase; font-family: var(--font-en); }
+  .sb-divider-label::after { content: ''; flex: 1; height: 1px; background: var(--border-soft); }
+
+  /* ─── Calendar ─── */
+  .calendar-section { padding: 4px 14px 12px; flex-shrink: 0; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-nav-btn { width: 24px; height: 24px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; transition: all 0.1s; }
+  .cal-nav-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .cal-month-label { font-size: 13px; font-weight: 500; color: var(--text-secondary);
+    font-family: var(--font-en); letter-spacing: -0.01em; }
+
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 1px; margin-bottom: 3px; }
+  .cal-weekday { text-align: center; font-size: 9px; font-weight: 600; color: var(--text-hint);
+    padding: 3px 0; letter-spacing: 0.04em; font-family: var(--font-en); text-transform: uppercase; }
+  .cal-weekday.sun { color: #d07070; }
+  .cal-weekday.sat { color: #7090c0; }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; border-radius: 3px; cursor: pointer; transition: background 0.1s; gap: 2px; }
+  .cal-day:hover:not(.empty) { background: var(--bg-hover); }
+  .cal-day.empty { cursor: default; }
+  .day-num { font-size: 11px; color: var(--text-muted); line-height: 1;
+    font-family: var(--font-en); font-weight: 400; }
+  .cal-day.today .day-num { color: var(--accent); font-weight: 600; }
+  .cal-day.selected { background: var(--accent-light); }
+  .cal-day.selected .day-num { color: var(--accent); font-weight: 600; }
+  .cal-day.sunday .day-num { color: #d07070; }
+  .cal-day.saturday .day-num { color: #7090c0; }
+  .heat-dot { width: 3px; height: 3px; border-radius: 50%; background: transparent; }
+  .cal-day.lvl1 .heat-dot { background: var(--green-1); }
+  .cal-day.lvl2 .heat-dot { background: var(--green-2); }
+  .cal-day.lvl3 .heat-dot { background: var(--green-3); }
+  .cal-day.lvl4 .heat-dot { background: var(--green-4); }
+
+  .heat-legend { display: flex; align-items: center; gap: 4px; padding: 6px 0 0; }
+  .heat-legend-label { font-size: 9px; color: var(--text-hint); font-family: var(--font-en); }
+  .heat-legend-cells { display: flex; gap: 2px; align-items: center; }
+  .heat-cell { width: 9px; height: 9px; border-radius: 2px; background: var(--green-0); }
+  .heat-cell.l1 { background: var(--green-1); }
+  .heat-cell.l2 { background: var(--green-2); }
+  .heat-cell.l3 { background: var(--green-3); }
+  .heat-cell.l4 { background: var(--green-4); }
+
+  /* ─── Editor ─── */
+  .editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-page); }
+
+  .editor-header { display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 32px; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .editor-date-chip { display: flex; align-items: baseline; gap: 8px; }
+  .date-big { font-family: var(--font-en); font-size: 26px; font-weight: 600;
+    color: var(--text-primary); letter-spacing: -0.03em; line-height: 1; }
+  .date-sub { font-size: 13px; color: var(--text-muted); font-weight: 300; }
+  .editor-header-right { display: flex; align-items: center; gap: 10px; }
+  .char-count-badge { display: flex; align-items: baseline; gap: 2px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; }
+  .char-count-num { font-family: var(--font-en); font-size: 16px; font-weight: 500;
+    color: var(--text-secondary); line-height: 1; }
+  .char-count-label { font-size: 11px; color: var(--text-muted); }
+
+  .writing-canvas { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .writing-inner { max-width: 680px; width: 100%; margin: 0 auto;
+    padding: 36px 24px 32px; flex: 1; display: flex; flex-direction: column; }
+  .title-input { width: 100%; background: transparent; border: none; outline: none;
+    font-family: var(--font-ja); font-size: 22px; font-weight: 700; color: var(--text-primary);
+    letter-spacing: -0.01em; line-height: 1.4; caret-color: var(--accent); margin-bottom: 6px; }
+  .title-input::placeholder { color: var(--text-hint); font-weight: 400; }
+  .title-underline { height: 1px; background: var(--border); margin-bottom: 24px; }
+  .main-textarea { flex: 1; min-height: 400px; background: transparent; border: none;
+    outline: none; resize: none; font-family: var(--font-ja); font-size: 15px; font-weight: 300;
+    color: var(--text-primary); line-height: 1.9; letter-spacing: 0.01em; caret-color: var(--accent); }
+  .main-textarea::placeholder { color: var(--text-hint); line-height: 1.9; }
+
+  .editor-footer { border-top: 1px solid var(--border); padding: 9px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0; background: var(--bg-panel); }
+  .footer-meta { display: flex; gap: 20px; align-items: center; }
+  .footer-meta-item { display: flex; flex-direction: column; gap: 1px; }
+  .footer-meta-label { font-size: 9px; color: var(--text-hint); letter-spacing: 0.08em;
+    text-transform: uppercase; font-family: var(--font-en); font-weight: 400; }
+  .footer-meta-val { font-size: 12px; color: var(--text-muted); font-weight: 400; font-family: var(--font-en); }
+  .footer-right { display: flex; gap: 10px; align-items: center; }
+  .folder-tag-badge { display: flex; align-items: center; gap: 5px; font-size: 12px;
+    color: var(--text-muted); background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 11px; cursor: pointer; transition: background 0.12s; }
+  .folder-tag-badge:hover { background: var(--bg-hover); color: var(--text-secondary); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #cbc8c2; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ── Top Bar ── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand-icon">sz</div>
+      <div class="brand-name">しずく</div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-icon" title="設定">⚙</button>
+      <button class="btn" id="btnNew">新規ノート</button>
+      <button class="btn btn-primary" id="btnSave">保存する</button>
+    </div>
+  </header>
+
+  <div class="main-layout">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+      <div class="search-wrap">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="searchInput" type="text" placeholder="ノートを検索…" />
+        </div>
+      </div>
+
+      <div class="sidebar-body">
+        <div class="sb-section"><div class="sb-section-label">フォルダ</div></div>
+        <div class="folder-list">
+          <div class="folder-item active" data-folder="all">
+            <span class="folder-icon">📋</span>すべてのノート
+            <span class="folder-count" id="countAll">0</span>
+          </div>
+          <div class="folder-item" data-folder="idea">
+            <span class="folder-icon">💡</span>アイディア
+            <span class="folder-count" id="countIdea">0</span>
+          </div>
+          <div class="folder-item" data-folder="work">
+            <span class="folder-icon">💼</span>仕事
+            <span class="folder-count" id="countWork">0</span>
+          </div>
+          <div class="folder-item" data-folder="diary">
+            <span class="folder-icon">📖</span>日記
+            <span class="folder-count" id="countDiary">0</span>
+          </div>
+          <div class="folder-item" data-folder="memo">
+            <span class="folder-icon">🔖</span>メモ
+            <span class="folder-count" id="countMemo">0</span>
+          </div>
+        </div>
+
+        <div class="sb-divider"></div>
+
+        <div class="sb-section"><div class="sb-section-label">最近のノート</div></div>
+        <div class="note-list" id="recentList">
+          <div class="note-list-empty">ノートがまだありません</div>
+        </div>
+
+        <div class="sb-divider-label"><span>カレンダー</span></div>
+        <div class="calendar-section">
+          <div class="cal-header">
+            <button class="cal-nav-btn" id="calPrev">&#8249;</button>
+            <div class="cal-month-label" id="calMonthLabel"></div>
+            <button class="cal-nav-btn" id="calNext">&#8250;</button>
+          </div>
+          <div class="cal-weekdays">
+            <div class="cal-weekday sun">Su</div>
+            <div class="cal-weekday">Mo</div>
+            <div class="cal-weekday">Tu</div>
+            <div class="cal-weekday">We</div>
+            <div class="cal-weekday">Th</div>
+            <div class="cal-weekday">Fr</div>
+            <div class="cal-weekday sat">Sa</div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="heat-legend">
+            <span class="heat-legend-label">少</span>
+            <div class="heat-legend-cells">
+              <div class="heat-cell"></div>
+              <div class="heat-cell l1"></div>
+              <div class="heat-cell l2"></div>
+              <div class="heat-cell l3"></div>
+              <div class="heat-cell l4"></div>
+            </div>
+            <span class="heat-legend-label">多</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Editor ── -->
+    <section class="editor-area">
+      <div class="editor-header">
+        <div class="editor-date-chip">
+          <span class="date-big" id="editorDay"></span>
+          <span class="date-sub" id="editorDateSub"></span>
+        </div>
+        <div class="editor-header-right">
+          <div class="char-count-badge">
+            <span class="char-count-num" id="charCount">0</span>
+            <span class="char-count-label">字</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="writing-canvas">
+        <div class="writing-inner">
+          <input class="title-input" id="titleInput" type="text" placeholder="タイトルを入力…" />
+          <div class="title-underline"></div>
+          <textarea class="main-textarea" id="mainEditor" placeholder="ここに自由に書いてください…"></textarea>
+        </div>
+      </div>
+
+      <footer class="editor-footer">
+        <div class="footer-meta">
+          <div class="footer-meta-item">
+            <span class="footer-meta-label">Last Saved</span>
+            <span class="footer-meta-val" id="lastSaved">—</span>
+          </div>
+          <div class="footer-meta-item">
+            <span class="footer-meta-label">Words</span>
+            <span class="footer-meta-val" id="wordCount">0</span>
+          </div>
+          <div class="footer-meta-item">
+            <span class="footer-meta-label">Paragraphs</span>
+            <span class="footer-meta-val" id="paraCount">0</span>
+          </div>
+        </div>
+        <div class="footer-right">
+          <div class="folder-tag-badge" id="folderBadge">📖 日記</div>
+          <button class="btn">…</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   STORAGE HELPERS
+═══════════════════════════════════════════ */
+const LS_PREFIX = 'shizuku_note_';
+const LS_META   = 'shizuku_meta';
+
+function noteKey(dateStr) { return LS_PREFIX + dateStr; }
+
+function loadNote(dateStr) {
+  const raw = localStorage.getItem(noteKey(dateStr));
+  return raw ? JSON.parse(raw) : { title: '', content: '', folder: 'diary', updatedAt: null };
+}
+
+function saveNote(dateStr, title, content, folder) {
+  const now = new Date();
+  const data = { title, content, folder, updatedAt: now.toISOString() };
+  localStorage.setItem(noteKey(dateStr), JSON.stringify(data));
+  return data;
+}
+
+function getAllNotes() {
+  const notes = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k.startsWith(LS_PREFIX)) continue;
+    const dateStr = k.replace(LS_PREFIX, '');
+    try {
+      const d = JSON.parse(localStorage.getItem(k));
+      notes.push({ dateStr, ...d });
+    } catch (e) {}
+  }
+  notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  return notes;
+}
+
+/* ═══════════════════════════════════════════
+   DATE HELPERS
+═══════════════════════════════════════════ */
+const WEEKDAYS_JA = ['日','月','火','水','木','金','土'];
+const WEEKDAYS_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS_EN   = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+
+function toDateStr(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function parseDateStr(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function formatDateSub(dateStr) {
+  const dt = parseDateStr(dateStr);
+  return `${dt.getFullYear()}年 ${dt.getMonth()+1}月 ${WEEKDAYS_JA[dt.getDay()]}曜日`;
+}
+function formatDateShort(dateStr) {
+  const dt = parseDateStr(dateStr);
+  const mon = MONTHS_EN[dt.getMonth()].slice(0,3);
+  return `${mon} ${dt.getDate()}`;
+}
+function heatLevel(n) {
+  if (!n || n === 0) return '';
+  if (n < 400)  return 'lvl1';
+  if (n < 900)  return 'lvl2';
+  if (n < 1800) return 'lvl3';
+  return 'lvl4';
+}
+
+const FOLDER_LABELS = {
+  all:'すべてのノート', idea:'アイディア',
+  work:'仕事', diary:'日記', memo:'メモ'
+};
+const FOLDER_ICONS = {
+  all:'📋', idea:'💡', work:'💼', diary:'📖', memo:'🔖'
+};
+
+/* ═══════════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════════ */
+const today = new Date();
+let calYear   = today.getFullYear();
+let calMonth  = today.getMonth();
+let activeDate = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+let activeFolderFilter = 'all';
+let searchQuery = '';
+
+/* ═══════════════════════════════════════════
+   CALENDAR RENDER
+═══════════════════════════════════════════ */
+function renderCalendar() {
+  const grid  = document.getElementById('calGrid');
+  const label = document.getElementById('calMonthLabel');
+  label.textContent = `${MONTHS_EN[calMonth]} ${calYear}`;
+  grid.innerHTML = '';
+
+  const firstDow = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // Empty cells
+  for (let i = 0; i < firstDow; i++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day empty';
+    grid.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds  = toDateStr(calYear, calMonth, d);
+    const dow = new Date(calYear, calMonth, d).getDay();
+    const el  = document.createElement('div');
+    el.className = 'cal-day';
+    if (dow === 0) el.classList.add('sunday');
+    if (dow === 6) el.classList.add('saturday');
+    if (ds === todayStr)   el.classList.add('today');
+    if (ds === activeDate) el.classList.add('selected');
+
+    // Heat from LocalStorage
+    const raw = localStorage.getItem(noteKey(ds));
+    if (raw) {
+      const note = JSON.parse(raw);
+      const lv = heatLevel(note.content ? note.content.length : 0);
+      if (lv) el.classList.add(lv);
+    }
+
+    el.innerHTML = `<span class="day-num">${d}</span><div class="heat-dot"></div>`;
+    el.addEventListener('click', () => openDate(ds));
+    grid.appendChild(el);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   RECENT NOTES LIST
+═══════════════════════════════════════════ */
+function renderRecentList() {
+  const container = document.getElementById('recentList');
+  let notes = getAllNotes();
+
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    notes = notes.filter(n =>
+      n.title.toLowerCase().includes(q) ||
+      n.content.toLowerCase().includes(q)
+    );
+  }
+  if (activeFolderFilter !== 'all') {
+    notes = notes.filter(n => n.folder === activeFolderFilter);
+  }
+
+  // Update folder counts
+  const allNotes = getAllNotes();
+  document.getElementById('countAll').textContent  = allNotes.length || '0';
+  document.getElementById('countIdea').textContent = allNotes.filter(n=>n.folder==='idea').length || '0';
+  document.getElementById('countWork').textContent = allNotes.filter(n=>n.folder==='work').length || '0';
+  document.getElementById('countDiary').textContent= allNotes.filter(n=>n.folder==='diary').length || '0';
+  document.getElementById('countMemo').textContent = allNotes.filter(n=>n.folder==='memo').length || '0';
+
+  if (notes.length === 0) {
+    container.innerHTML = '<div class="note-list-empty">ノートがまだありません</div>';
+    return;
+  }
+
+  container.innerHTML = notes.slice(0, 8).map(n => {
+    const icon  = FOLDER_ICONS[n.folder] || '📋';
+    const label = FOLDER_LABELS[n.folder] || n.folder;
+    const preview = n.content ? n.content.replace(/\n/g,' ').slice(0, 40) : '（本文なし）';
+    const isActive = n.dateStr === activeDate;
+    return `
+      <div class="note-item ${isActive ? 'active' : ''}" data-date="${n.dateStr}">
+        <div class="note-item-title">${n.title || '（無題）'}</div>
+        <div class="note-item-meta">
+          <span class="note-item-date">${formatDateShort(n.dateStr)}</span>
+          <span class="note-tag">${icon} ${label}</span>
+        </div>
+        <div class="note-item-preview">${preview}</div>
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('.note-item').forEach(el => {
+    el.addEventListener('click', () => openDate(el.dataset.date));
+  });
+}
+
+/* ═══════════════════════════════════════════
+   EDITOR: open a date
+═══════════════════════════════════════════ */
+function openDate(dateStr) {
+  // Auto-save current before switching
+  autoSave();
+  activeDate = dateStr;
+
+  const dt = parseDateStr(dateStr);
+  calYear  = dt.getFullYear();
+  calMonth = dt.getMonth();
+
+  const note = loadNote(dateStr);
+  document.getElementById('titleInput').value   = note.title;
+  document.getElementById('mainEditor').value   = note.content;
+  document.getElementById('editorDay').textContent    = dt.getDate();
+  document.getElementById('editorDateSub').textContent = formatDateSub(dateStr);
+  document.getElementById('lastSaved').textContent =
+    note.updatedAt ? new Date(note.updatedAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}) : '—';
+  document.getElementById('folderBadge').textContent =
+    `${FOLDER_ICONS[note.folder]||'📋'} ${FOLDER_LABELS[note.folder]||note.folder}`;
+
+  updateCounters();
+  renderCalendar();
+  renderRecentList();
+}
+
+/* ═══════════════════════════════════════════
+   AUTO-SAVE (saves if there's content)
+═══════════════════════════════════════════ */
+function autoSave() {
+  const title   = document.getElementById('titleInput').value;
+  const content = document.getElementById('mainEditor').value;
+  if (!title && !content) return;
+  const folder = getCurrentFolder();
+  saveNote(activeDate, title, content, folder);
+}
+
+function getCurrentFolder() {
+  const badge = document.getElementById('folderBadge').textContent;
+  for (const [k, v] of Object.entries(FOLDER_LABELS)) {
+    if (badge.includes(v)) return k;
+  }
+  return 'diary';
+}
+
+/* ═══════════════════════════════════════════
+   MANUAL SAVE
+═══════════════════════════════════════════ */
+function saveCurrentNote() {
+  const title   = document.getElementById('titleInput').value;
+  const content = document.getElementById('mainEditor').value;
+  const folder  = getCurrentFolder();
+  const data    = saveNote(activeDate, title, content, folder);
+  document.getElementById('lastSaved').textContent =
+    new Date(data.updatedAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  renderCalendar();
+  renderRecentList();
+  showToast('保存しました ✓');
+}
+
+/* ═══════════════════════════════════════════
+   NEW NOTE
+═══════════════════════════════════════════ */
+function newNote() {
+  autoSave();
+  // Use today as the new note's date
+  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+  activeDate = todayStr;
+  calYear  = today.getFullYear();
+  calMonth = today.getMonth();
+
+  document.getElementById('titleInput').value   = '';
+  document.getElementById('mainEditor').value   = '';
+  document.getElementById('lastSaved').textContent = '—';
+  document.getElementById('folderBadge').textContent = '📖 日記';
+  document.getElementById('editorDay').textContent  = today.getDate();
+  document.getElementById('editorDateSub').textContent = formatDateSub(todayStr);
+  updateCounters();
+  renderCalendar();
+  renderRecentList();
+  document.getElementById('titleInput').focus();
+}
+
+/* ═══════════════════════════════════════════
+   COUNTERS
+═══════════════════════════════════════════ */
+function updateCounters() {
+  const txt   = document.getElementById('mainEditor').value;
+  const chars = txt.length;
+  document.getElementById('charCount').textContent = chars.toLocaleString('ja-JP');
+  const words = txt.trim() ? txt.trim().split(/[\s\u3000]+/).filter(Boolean).length : 0;
+  document.getElementById('wordCount').textContent = words;
+  const paras = txt.split('\n').filter(p => p.trim()).length;
+  document.getElementById('paraCount').textContent = paras;
+}
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+/* ═══════════════════════════════════════════
+   EVENT LISTENERS
+═══════════════════════════════════════════ */
+document.getElementById('btnSave').addEventListener('click', saveCurrentNote);
+document.getElementById('btnNew').addEventListener('click', newNote);
+
+document.getElementById('mainEditor').addEventListener('input', updateCounters);
+document.getElementById('titleInput').addEventListener('input', updateCounters);
+
+// Keyboard shortcut: Ctrl+S / Cmd+S
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveCurrentNote();
+  }
+});
+
+// Calendar navigation
+document.getElementById('calPrev').addEventListener('click', () => {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+document.getElementById('calNext').addEventListener('click', () => {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+// Folder filter
+document.querySelectorAll('.folder-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.folder-item').forEach(f => f.classList.remove('active'));
+    el.classList.add('active');
+    activeFolderFilter = el.dataset.folder;
+    renderRecentList();
+  });
+});
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  renderRecentList();
+});
+
+// Auto-save on page hide
+window.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') autoSave();
+});
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+(function init() {
+  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+  activeDate = todayStr;
+  document.getElementById('editorDay').textContent      = today.getDate();
+  document.getElementById('editorDateSub').textContent  = formatDateSub(todayStr);
+
+  // Load today's note if it exists
+  const note = loadNote(todayStr);
+  document.getElementById('titleInput').value  = note.title;
+  document.getElementById('mainEditor').value  = note.content;
+  if (note.updatedAt) {
+    document.getElementById('lastSaved').textContent =
+      new Date(note.updatedAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('folderBadge').textContent =
+      `${FOLDER_ICONS[note.folder]||'📋'} ${FOLDER_LABELS[note.folder]||note.folder}`;
+  }
+
+  updateCounters();
+  renderCalendar();
+  renderRecentList();
+})();
+</script>
+</body>
+</html>
